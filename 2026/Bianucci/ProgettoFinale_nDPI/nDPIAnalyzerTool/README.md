@@ -11,14 +11,15 @@ Relazione tecnica/sperimentale e documentazione del progetto per il corso di **G
 ---
 
 ### 1. Introduzione e Obiettivi
-Agli albori di Intenet, ogni protocollo era associato in maniera biunivoca ad una porta nota (Well-Known, 0-1023), oggi giorno, a parte per alcuni protocolli che per ragioni storiche questa relazione è rimasta valida (es: HTTP via TCP porta 80), in molti altri casi, dovuto 
+Agli inizi di Internet, ogni protocollo era associato in maniera biunivoca ad una porta nota, oggi giorno, a parte per alcuni protocolli che per ragioni storiche questa relazione è rimasta valida (es: HTTP via TCP porta 80), in molti altri casi, dovuto anche
 alla rapida introduzione di nuovi protocolli rispetto al numero di porte fissato, questa relazione non è sempe piu valida. Per questo motivo non possiamo piu permetterci di effettuare congetture riguardo il protocollo utilizzato in flussi di traffico proveniente da determinate porte note. Paradossalmente
-non possiamo piu essere certi che traffico che sopraggiunge su porta 80 sia necessariamente traffico HTTP, infatti, è risaputo che sistemi noti possano prendere dati di un determinato protocollo, incapsularli in un altro protocollo, ed inviarli su porte standard e note come la 80 per HTTP e 443 per HTTPS, al fine di ingannare
+non possiamo piu essere certi che traffico che sopraggiunge su porta 80 sia necessariamente traffico HTTP, infatti, è noto che sistemi noti possano prendere dati di un determinato protocollo ed incapsularli in un altro protocollo ed inviarli su porte standard e note come la 80 per HTTP e 443 per HTTPS per ingannare
 sistemi di controllo della rete (come firewall), presentandosi come traffico legittimo ed innocuo (fenomeno del **tunneling**, ne sono un esempio le VPN che usano protocolli come OpenVPN su porta 443).
-Si è inoltre osservato che oggi giorno HTTP è il protocollo piu utilizzato per il traffico di rete, mostrando come sia stato adottato anche per molte funzionalità extra a quella principale per cui è stato creato (ossia per lo scambio di dati da/verso un server su Internet); è nota infatti per esempio la sua adozione per il trasferimento di file, soppiantando il famoso protocollo FTP.
-Esaminare la sola  5-tupla (IP_src, porta_src, IP_dst, porta_dst, proto_L4) non è quindi piu sufficiente, e per questo motivo è per tanto sorta la necessita di una tecnologia in grado di riconsocere queste anomalie non più solo guardando all'header dei pacchetti in transito (che risultano ormai poco informativi), ma che scendesse anche piu a fondo esaminando, entro certi limiti nel rispetto della privacy e della confidenzialita della comunicazione, anche il payload di questi ultimi.
+Si è inoltre osservato che oggi giorno HTTP è il protocollo piu utilizzato per il traffico di rete; si mostra comunemente ad esempio come HTTP è stato adottato anche per molte funzionalità extra a quella principale per cui è stato creato, ossia per lo scambio di dati da/verso un server su Internet; è nota infatti per esempio la sua adozione per il trasferimento di file, soppiantando il famoso protocollo FTP.
+Esaminare la sola  5-tupla (IP_src, porta_src, IP_dst, porta_dst, proto_L4) non è piu sufficiente, e per questo motivo è  quindi sorta la necessita di una tecnologia in grado di riconsocere queste anomalie non più solo guardando all'header dei pacchetti in transito (che risultano ormai poco informativi), ma che scendesse anche piu a fondo leggendo, entro certi limiti nel rispetto della privacy e della confidenzialita della comunicazione, anche il payload di questi.
 Nasce per questo motivo la tecnologia Deep Packet Inspection (DPI).
-Col passare del tempo però, l'adozione pervasiva di protocolli di cifratura hanno iniziato ad imporre delle forti limitazioni anche a questa tecnologia, portando quindi alla nascita di una nuova libreria open source **per l'analisi e la classificazione** del traffico di rete chiamata nDPI. Questa libreria, sviluppata da ntop, prende spunto da una precedente versione open source chiamata OpenDPI ormai deprecata, ed a partire da questa sono state aggiunte e raffinate molteplici funzionalita.
+Col passare del tempo però, l'adozione pervasiva di protocolli di cifratura hanno iniziato ad imporre delle forti limitazioni anche a questa tecnologia. Nasce da questa osservazione una nuova libreria open source **per l'analisi e la classificazione** del traffico di rete chiamata nDPI. Questa libreria, sviluppata da ntop, prende spunto da una precedente 
+versione open source chiamata OpenDPI ormai deprecata, ed a partire da questa sono state aggiunte e raffinate molteplici funzionalita.
 
 Cosa offre questa libreria:
 La libreria nDPI offre un sistema di analisi e classificazione del traffico di rete che opera andando oltre l'osservazione della semplice 5-tupla, ma va difatti ad analizzare entro certi limiti il payload dei pacchetti (non cifrati) che transitano; e per i flussi in cui quest'ultimo viaggia cifrato, sfrutta quegli unici pacchetti di una connessione che 
@@ -28,8 +29,8 @@ viaggiano in chiaro, ovvero quelli relativi alla fase di accordo iniziale (**Han
 * Poiche ormai appunto la maggior parte del traffico viaggia cifrato, nDPI include algoritmi in grado di analizzare i metadati dello scambio inizale di chiavi per identificare l'applicazione o rilevare minacce senza dover decifrare i dati (es: certificati SSL, JA4 calcolate, Server Name Indication (SNI) e Server Common Name (CN), Application Layer Protocol Negotiation (ALPN), ...).
   * Talvolta è possibile trovare anche le fasi di handshaking crittate (vedi Encrypted Client Hello (ECH)); in questi casi nDPI utilizza euristiche per stimare la tipologia di applicazione.
 
-In particolare nDPI si è ben affermato anche per la sua estrema efficienza nel lavoro che fa, infatti, si stima che siano sufficienti i primi ≈ 8 / 10 pacchetti per riuscire ad "indovinare" l'applicazione con precisione e quindi etichettare definitavmente quel flusso e passare oltre (da quel momento in poi tutti i pacchetti che sopraggiungono appartenenti a quel flusso non verranno piu controllati da nDPI). (NOTA: Naturalmente l'analisi DEVE inziare dal principio del flusso, altrimenti nella maggior parte dei casi non si riesce più a classificarlo)
-Infine, quando nDPI analizza un flusso, non restituisce una semplice etichetta, ma quasi sempre ragiona su **due livelli di classificazione < major > . < minor > ,** (per risolvere il problema del tunneling accennato sopra):
+In particolare nDPI si è ben affermato anche per la sua estrema efficienza nel lavoro che fa, infatti, si stima che siano sufficienti i primi ≈ 8 / 10 pacchetti per riuscire ad indovinare l'applicazione con precisione e quindi etichettare definitavmente quel flusso e passare oltre; da quel momento in poi tutti i pacchetti che sopraggiungono appartenenti a quel flusso non verranno piu controllati da nDPI. (NOTA: Naturalmente l'analisi DEVE inziare dal principio del flusso, altrimenti non si riesce più)
+Infine, quando nDPI analizza un flusso, non restituisce una semplice etichetta, ma quasi sempre ragiona su **due livelli di classificazione <major>.<minor>** (per risolvere il problema del tunneling accennato sopra):
 * **Major Protocol (protocollo di livello 7 ISO/OSI)**: protocollo di trasporto reale (il "contenitore"), come ad esempio HTTP, QUIC, HTTPS/TLS;
 * **Minor Protocol (applicazione)**: la vera applicazione che sta producendo traffico incapsulandolo in quel protocollo "contenitore", ad esempio: Whatsapp, Netflix, ecc... .
   * esempio: se un utente guarda un video su Netflix, nDPI classificherà il flusso dicendo: "Questo è traffico che viaggia su protocollo TLS (Master), ma l'applicazione reale all'interno è Netflix (App)".
@@ -40,7 +41,7 @@ come quel servizio sta navigando impedendoci di imporre policy di sicurezza dedi
 
 
 Tornando al progetto, lo studio si basa sull'applicazione della libreria nDPI al traffico generato da un dispositivo mobile, con l'intento di **classificarlo** e **definirne una baseline comportamentale**.
-Il progetto si presenta come un tool per l'analisi dei dati prodotti da `ndpiReader`, una funzionalita della libreria, su un file di cattura `.pcapng`. Tale cattura è stata effettuata via software isolando il traffico del dispositivo mobile, 
+Il progetto si presenta come un tool per l'analisi dei dati prodotti da `ndpiReader`, una fuinzionalita della libreria, su un file di cattura `.pcapng`. Tale cattura è stata effettuata via software isolando il traffico del dispositivo mobile, 
 preventivamente collegato a una rete hotspot offerta dall'host di cattura. L'applicativo ha quindi lo scopo di ispezionare i flussi estrapolati alla ricerca di anomalie, incongruenze e potenziali rischi di sicurezza.
 
 Il lavoro prevede inoltre l'integrazione di un modello di **Intelligenza Artificiale (LLM)** eseguito interamente in locale, per consentire di rispondere a domande comportamentali riguardo i dispositivi, tramite linguaggio naturale.
@@ -90,24 +91,24 @@ dove sono presenti piu host nella rete e con un carico di flussi molto elevato)
 ### 4. Sperimentazione e Analisi dei Risultati
 
 La fase sperimentale ha proseguito l'analisi sfruttando i grafici generati dal tool, con l'obiettivo di verificare la correlazione tra fingerprint crittografiche (JA4) e SNI, protocolli applicativi e indicatori di rischio associati ai flussi del dispositivo mobile, 
-cercando così di ricreare una baseline comportamentale del dispositivo stesso.
+cercando così di ricreare una baseline comportamentale del dispositivo in analisi.
 
 L'analisi offline eseguita sul dataset `traffico_telefono_ndpi.txt` ha prodotto i seguenti risultati aggregati:
 
-**Flussi analizzati:** **762 flussi unici**, di cui 699 classificati tramite DPI, ed i rimanenti 2 tramite classica risoluzione porte o DNS caching.
+**Flussi analizzati:** **762 flussi unici**, di cui 699 classificati tramite DPI, ed i rimanenti 2 tramite classica risoluzione porte o DNS caching. <br/>
 **Throughput medio:** 100.69 pps / 807.76 Kb/sec
 
-Dai primi grafici si nota subito una netta dominanza del traffico UDP (≈ 88%) rispetto al traffico TCP (≈ 11%), a testimonianza dell'adozione massicia di protocolli di nuova generazione (es: QUIC). Si nota inoltre che l'applicazione rilevata che genera piu traffico è Instagram dentro QUIC che genera fino a ≈ 50 MB di traffico.
+Dai primi grafici si nota subito una netta dominanza del traffico UDP (≈ 88%) rispetto al traffico TCP (≈ 11%), a testimonianza dell'adozione massiccia di protocolli di nuova generazione (ne è un forte esempio QUIC). Si nota inoltre che l'applicazione rilevata che genera piu traffico è Instagram con protocollo superiore, ben appunto, QUIC; la quale genera fino a ≈ 50 MB di traffico.
 
 <img src="tcp_udp.png" alt="tcp_udp" width="30%">
 
-La seconda scheda conferma la precedente statistica, infatti si osserva come per l'host `192.168.2.2`, l'applicazione che genera piu traffico è QUIC.Instagram, confermando come appunto la categoria con maggior influenza sia la `SocialNetwork`.
+
+La seconda scheda conferma la precedente statistica, infatti si osserva come per l'host `192.168.2.2`, l'applicazione che genera piu traffico è QUIC.Instagram, confermando come la categoria con maggior influenza sia la `SocialNetwork`.
 nDPI classifica il traffico anche in categorie chiamate `breeds` (come si vede in figura), di cui le principali sono:
 * **Unspecified**: Traffico generico non associato a un comportamento specifico.
 * **Safe**: Protocolli sicuri, standard e privi di rischi intrinseci (es. DNS standard).
 * **Acceptable**: Applicazioni aziendali o d'uso comune che non violano tipicamente le policy di rete (es. IMAP, SMTP).
 * **Fun**: Traffico legato al divertimento e all'intrattenimento (es. giochi online, piattaforme di streaming come Netflix).
-  * di cui infatti si nota rappresentare la fetta piu grande in figura
 * **Unsafe**: Protocolli o comportamenti potenzialmente pericolosi o vulnerabili (es. vecchi protocolli non crittografati).
 * **Dangerous**: Traffico associato a malware, botnet, attacchi informatici o siti di phishing noti.
 * **P2P (Peer-to-Peer)**: Protocolli di condivisione file decentralizzati (es. BitTorrent, eMule).
@@ -115,14 +116,16 @@ nDPI classifica il traffico anche in categorie chiamate `breeds` (come si vede i
 Le `breeds` sono fondamentali per i sistemi di monitoraggio e i firewall, in quanto permettono agli amministratori di rete di creare regole di sicurezza rapide, 
 come ad esempio bloccare o limitare interamente tutto il traffico marchiato con una certa _breed_, senza dover selezionare manualmente centinaia di singoli protocolli.
 
+Nel nostro caso si nota la breed _Fun_ rappresentare la fetta piu grande in figura, e questo ci sta bene in quanto rispecchia e conferma l'informazione che ci forniscono i due grafici alla sua sinistra. 
+
 <img src="app_cat.png" alt="app_cat" width="30%">
 
 
 La terza scheda invece è dedicata all'analisi degli **indicatori di rischio e comportamenti anomali** rilevati da nDPI durante l'analisi del traffico di rete. Questi, assieme ai _breeds_ servono a identificare traffico sospetto, attacchi informatici o configurazioni errate della rete.
-Nel nostro caso gli indicatori di rischio rilevati sono i seguenti:
+Nel nostro caso, come si nota nel grafico a barre, gli indicatori di rischio rilevati nei nostri flussi sono i seguenti:
 * **Expected on port 80**: Il traffico sta usando la porta 80 (tipica dell'HTTP in chiaro), ma il protocollo identificato all'interno del pacchetto non è HTTP. 
-  * Come detto in precedenza si tratta di una tecnica comune per aggirare i firewall.
-  * Si nota infatti come sia il piu frequente nella nostra collezione di flussi
+  * Come detto in precedenza, si tratta di una tecnica comune per aggirare i firewall, e conferma la massiccia adozione del protocollo HTTP anche per scopi differenti dal tradizionale scambio di contenuti web, sfruttando le sue caratteristiche per il trasporto di dati nei vari contesti 
+  * Si nota infatti come sia il _Risk_ **piu frequente** nella nostra collezione di flussi
 * **Empty or missing User-Agent**: Una connessione HTTP non contiene l'intestazione User-Agent (che identifica il browser o l'applicazione). 
   * Spesso indica traffico generato da script automatizzati (scraper web), bot o malware, anziché da un utente reale.
 * **TLS (probably) Not Carrying HTTPS**: Viene stabilita una connessione cifrata (TLS), ma nDPI rileva che dentro quel tunnel non sta transitando traffico web (HTTPS), bensì un altro protocollo nascosto (es. SSH, VPN, ecc...).
@@ -154,10 +157,10 @@ Notiamo subito dai primi flussi che l'analisi sta rispecchiando la situazione at
 
 Nella quarta scheda troviamo inanzi tutto la conferma che il dispositivo 192.168.2.2 si tratta di un iPhone, e sottostante a questa informazione troviamo una tabella con i flussi del traffico che hanno quell'IP come IP_src ed ha l'intento di mostrare la legittimità del traffico tramite l'analisi della coerenza strutturale dell'impronta JA4 calcolata da nDPI.
 L'esito "Match!" certifica che c'è totale coerenza tra ciò che nDPI rileva nel traffico e ciò che la fingerprint JA4 codifica internamente. Nello specifico, verifica che quando viene rilevato un dominio testuale (SNI), la fingerprint JA4 marchi correttamente il campo come d (Domain). Qui si nota essere tutto corretto.
-Guardando comunque la lista, il traffico appare del tutto coerente con l'uso quotidiano ed innocuo di un iPhone: si vedono flussi verso i server di Instagram (tramite protocollo QUIC), Spotify (TLS e QUIC), Telegram e servizi di background Apple (iCloud e notifiche push), confermando che l'attività del dispositivo in quell'intervallo temporale era legata ad applicazioni social, messaggistica e streaming musicale.
+Guardando comunque la lista, il traffico appare del tutto coerente con un utlizzo quotidiano ed innocuo di un iPhone: si vedono flussi verso i server di Instagram (tramite protocollo QUIC), Spotify (TLS e QUIC), Telegram e servizi di background Apple (iCloud e notifiche push), confermando che l'attività del dispositivo in quell'intervallo temporale era legata ad applicazioni social, messaggistica e streaming musicale.
 
 Molti malware, una volta infettato un dispositivo, cercano di comunicare con il server degli attaccanti, e per evitare di essere bloccati dai filtri DNS, spesso non usano un nome di dominio, ma si collegano direttamente a indirizzi IP numerici scritti nel codice del virus.
-Cosa vedremo nella tabella: Se un malware cercasse di camuffarsi inviando un finto dominio nel pacchetto (SNI), ma la fingerprint JA4 indicasse i (IP), vedremo un _Mismatch_; notificandocelo immediatamente come indicatore di compromissione.
+Pertanto se un malware cercasse di camuffarsi inviando un finto dominio nel pacchetto (SNI), ma la fingerprint JA4 indicasse i (IP), vedremo un _Mismatch_, notificandocelo immediatamente come indicatore di compromissione.
 
 <img src="JA4.png" alt="JA4" width="30%">
 
