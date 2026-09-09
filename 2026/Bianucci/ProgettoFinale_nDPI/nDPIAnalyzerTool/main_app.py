@@ -1,144 +1,194 @@
 #!/usr/bin/env python3
-"""Interfaccia desktop multipiattaforma per il Network AI Assistant."""
+""" Interfaccia desktop multipiattaforma per il Network AI Assistant """
 
 from __future__ import annotations
 
 import os
-import threading
 import urllib.request
-from datetime import datetime
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from analyzer import parse_ndpi_output, query_local_ai
+from analytics import Analytics
+from chat_interface import ChatApp
+from analyzer import parse_ndpi_output
 from converter_window import PcapConverterWindow
+from gui_utils import COLORS
 
-COLORS = {
-    "bg": "#0b1020", "panel": "#121a2f", "panel_alt": "#18233e",
-    "border": "#263454", "text": "#edf2ff", "muted": "#9ba8c8",
-    "accent": "#7c5cff", "accent_hover": "#9178ff", "success": "#41d7a7",
-    "user": "#6246d8", "bot": "#1b2948", "danger": "#ff7d8f",
-}
+from NetSession import NetSession
 
+SIDEBAR_W = 220
+SIDEBAR_BG = COLORS["panel"]
+HOVER_BG = COLORS["bg"]
+ITEM_H = 52 # altezza voci sidebar
+ITEM_FONT = ("Arial", 12, "bold")
 
-def json_ready(value):
-    """Converte ricorsivamente i set prodotti dal parser in liste JSON."""
-    if isinstance(value, set):
-        return sorted(json_ready(item) for item in value)
-    if isinstance(value, dict):
-        return {key: json_ready(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [json_ready(item) for item in value]
-    return value
+NAV_ITEMS = [
+    ("chat", "LLM Chat", "", COLORS["accent"]),
+    ("analytics", "Traffic Analytics", "", COLORS["accent"])
+]
 
 
-class ChatApp(tk.Tk):
+class SidebarItem(tk.Frame):
+    """ Gestisce le varie finestre """
+
+    def __init__(self, parent, key: str, icon: str, label: str, accent: str, on_click, **kwargs):
+        super().__init__(parent, bg=SIDEBAR_BG, cursor="hand2", height=ITEM_H, **kwargs)
+        self.pack_propagate(False) # non voglio che i widget modifichino la dimensione del contenitore
+
+        self.key = key
+        self.style = accent
+        self._active = False
+        self._on_click = on_click
+
+        self._active_bar = tk.Frame(self, width=4, bg=SIDEBAR_BG)
+        self._active_bar.pack(side="left", fill="y")
+
+        self._icon_lbl = tk.Label(self, text=icon, bg=SIDEBAR_BG, fg=COLORS["text"], font=("Arial", 14), padx=6)
+        self._icon_lbl.pack(side="left")
+
+        self._text_lbl = tk.Label(self, text=label, bg=SIDEBAR_BG, fg=COLORS["text"], font=ITEM_FONT, anchor="w")
+        self._text_lbl.pack(side="left", fill="x", expand=True)
+
+        # Gestione passaggio del mause e click
+        self.bind("<Button-1>", self._click)
+        self._icon_lbl.bind("<Button-1>", self._click)
+        self._text_lbl.bind("<Button-1>", self._click)
+
+        self.bind("<Enter>", self._hover_on)
+        self._icon_lbl.bind("<Enter>", self._hover_on)
+        self._text_lbl.bind("<Enter>", self._hover_on)
+
+        self.bind("<Leave>", self._hover_off)
+        self._icon_lbl.bind("<Leave>", self._hover_off)
+        self._text_lbl.bind("<Leave>", self._hover_off)
+
+    def set_active(self, active):
+        self._active = active
+        self._refresh()
+
+    def _refresh(self):
+        if self._active:
+            self._active_bar.config(bg=self.style)
+            self._icon_lbl.config(bg=HOVER_BG, fg=self.style)
+            self._text_lbl.config(bg=HOVER_BG, fg=COLORS["text"], font=ITEM_FONT)
+            self.config(bg=HOVER_BG)
+        else:
+            self._active_bar.config(bg=SIDEBAR_BG)
+            self._icon_lbl.config(bg=SIDEBAR_BG, fg=COLORS["muted"])
+            self._text_lbl.config(bg=SIDEBAR_BG, fg=COLORS["text"], font=ITEM_FONT)
+            self.config(bg=SIDEBAR_BG)
+
+    def _click(self, _event=None):
+        self._on_click(self.key)
+
+    def _hover_on(self, _event=None):
+        if not self._active:
+            self.config(bg=HOVER_BG)
+            self._active_bar.config(bg=SIDEBAR_BG)
+            self._icon_lbl.config(bg=HOVER_BG, fg=self.style)
+            self._text_lbl.config(bg=HOVER_BG)
+
+    def _hover_off(self, _event=None):
+        if not self._active:
+            self._refresh()
+
+
+class AnalyzerApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Network AI Assistant")
         self.minsize(940, 640)
         self.geometry("1180x760")
         self.configure(bg=COLORS["bg"])
-        self.knowledge_base = None
+
         self.current_file = None
         self.last_generated_file = None
-        self.is_waiting = False
+        self._current_key = None  # pagina attualmente visualizzata
+        self.session: NetSession = NetSession()
+
         self._configure_style()
         self._build_ui()
-        self.after(150, lambda: self.add_message(
-            "assistant",
-            "Ciao! Sono il tuo analista di rete. Puoi caricare un file .txt di nDPI o convertire un .pcapng tramite il pannello laterale."
-            )
-        )
+        self._navigate("chat")  # apre inizialmente la pagina della chat
 
     def _configure_style(self):
         style = ttk.Style(self)
-        style.theme_use("clam")
+        if "clam" in style.theme_names():
+            style.theme_use("clam") # "clam" -> consente di avere un interfaccia che rimanga consistente multi-piattaforma
+
         style.configure("TFrame", background=COLORS["bg"])
         style.configure("Side.TFrame", background=COLORS["panel"])
         style.configure("TLabel", background=COLORS["bg"], foreground=COLORS["text"], font=("Arial", 14))
         style.configure("Side.TLabel", background=COLORS["panel"], foreground=COLORS["text"])
         style.configure("Muted.TLabel", background=COLORS["panel"], foreground=COLORS["muted"], font=("Arial", 12))
-        style.configure("Primary.TButton", background=COLORS["accent"], foreground="white", borderwidth=0,
-                        padding=(15, 10), font=("Arial", 12, "bold"))
+        style.configure("Primary.TButton", background=COLORS["accent"], foreground="white", borderwidth=0, padding=(15, 10), font=("Arial", 12, "bold"))
         style.map("Primary.TButton", background=[("active", COLORS["accent_hover"]), ("disabled", "#4a4775")])
-        style.configure("Ghost.TButton", background=COLORS["panel_alt"], foreground=COLORS["text"], borderwidth=0,
-                        padding=(11, 8), font=("Arial", 12))
+        style.configure("Ghost.TButton", background=COLORS["panel_alt"], foreground=COLORS["text"], borderwidth=0, padding=(11, 8), font=("Arial", 12))
         style.map("Ghost.TButton", background=[("active", COLORS["border"])])
 
     def _build_ui(self):
         root = ttk.Frame(self)
         root.pack(fill="both", expand=True)
-
         root.columnconfigure(1, weight=1)
         root.rowconfigure(0, weight=1)
 
         self._build_sidebar(root)
-        self._build_chat(root)
+        self.build_content_area(root)
 
     def _build_sidebar(self, root):
-        side = ttk.Frame(root, style="Side.TFrame", width=285)
-        side.grid(row=0, column=0, sticky="nsew")
-        side.grid_propagate(False)
+        sidebar = ttk.Frame(root, style="Side.TFrame", width=285)
+        sidebar.grid(row=0, column=0, sticky="nsew")
+        sidebar.grid_propagate(False)
 
-        brand = ttk.Frame(side, style="Side.TFrame")
+        brand = ttk.Frame(sidebar, style="Side.TFrame")
         brand.pack(fill="x", padx=20, pady=(24, 18))
         tk.Label(brand, text="✦", bg=COLORS["accent"], fg="white", font=("Arial", 18, "bold"), width=2).pack(side="left", padx=(0, 10))
         title = ttk.Frame(brand, style="Side.TFrame")
         title.pack(side="left")
-        ttk.Label(title, text="nDPI ANALYZER TOOL", style="Side.TLabel", font=("Arial", 15, "bold")).pack(anchor="w")
+        ttk.Label(title, text="nDPI ANALYZER", style="Side.TLabel", font=("Arial", 15, "bold")).pack(anchor="w")
         ttk.Label(title, text="AI network analyst", style="Muted.TLabel").pack(anchor="w")
 
-        ttk.Label(side, text="ANALISI ATTIVA", style="Muted.TLabel", font=("Arial", 10, "bold")).pack(anchor="w",
-                                                                                                     padx=20)
-        self.file_status = ttk.Label(side, text="Nessun file caricato", style="Side.TLabel", wraplength=240, font=("Arial", 11, "bold"))
+        ttk.Separator(sidebar).pack(fill="x", padx=20, pady=10)
+
+        # Pulsanti --> Gestine voci della sidebar
+        self._nav_items: dict[str, SidebarItem] = {}
+        for key, label, icon, style in NAV_ITEMS:  # creazione automatica delle voci del menu laterale
+            item = SidebarItem(sidebar, key=key, icon=icon, label=label, accent=style, on_click=self._navigate)
+            item.pack(fill="x", pady=2)
+            self._nav_items[key] = item
+
+        ttk.Separator(sidebar).pack(fill="x", padx=20, pady=(15, 10))
+
+        ttk.Label(sidebar, text="FILE DI ANALISI", style="Muted.TLabel", font=("Arial", 10, "bold")).pack(anchor="w", padx=20)
+
+        self.file_status = ttk.Label(sidebar, text="Nessun file caricato", style="Side.TLabel", wraplength=240, font=("Arial", 12, "bold"))
         self.file_status.pack(anchor="w", padx=20, pady=(6, 2))
-        self.stats_label = ttk.Label(side, text="Carica un output .txt o converti un pcap", style="Muted.TLabel", wraplength=240, font=("Arial", 10))
+        self.stats_label = ttk.Label(sidebar, text="Carica un output .txt o converti un pcap", style="Muted.TLabel", wraplength=240, font=("Arial", 11))
         self.stats_label.pack(anchor="w", padx=20)
 
-        # Pulsante 1 --> Carica file TXT
-        ttk.Button(side, text="＋  Carica file .txt", style="Primary.TButton", command=self.load_file).pack(fill="x", padx=20, pady=(12, 6))
 
-        # Pulsante 2 --> Apre la finestra di conversione
-        ttk.Button(side, text="⚡  Converti PCAP con nDPI", style="Ghost.TButton", command=self.open_pcap_converter).pack(fill="x", padx=20, pady=(0, 6))
-
-        # Pulsante 3 --> Scorciatoia ultimo file generato
+        ttk.Button(sidebar, text="Carica file .txt", style="Primary.TButton", command=self.load_file).pack(fill="x", padx=20, pady=(12, 6))
+        ttk.Button(sidebar, text="Converti PCAP con nDPI", style="Ghost.TButton", command=self.open_pcap_converter).pack(fill="x", padx=20, pady=(0, 6))
         self.btn_load_recent = tk.Button(
-            side,
-            text="➔  Usa ultimo file generato",
+            sidebar,
+            text="➔  Usa ultimo generato",
             bg=COLORS["panel_alt"],
             fg=COLORS["success"],
-            font=("Arial", 10, "bold"),
+            font=("Arial", 12, "bold"),
             relief="flat",
             state="disabled",
             command=self._load_last_generated
         )
-        self.btn_load_recent.pack(fill="x", padx=20, pady=(0, 18))
+        self.btn_load_recent.pack(fill="x", padx=20, pady=(5, 18))
 
-        ttk.Separator(side).pack(fill="x", padx=20, pady=(0, 16))
-        ttk.Label(side, text="SUGGERIMENTI", style="Muted.TLabel", font=("Arial", 10, "bold")).pack(anchor="w", padx=20)
-        suggestions = [
-            "Quali fingerprint JA4 usa l'host 192.168.2.2?",
-            "Mostrami la frequenza delle app e i volumi in byte",
-            "Mostrami i domini più frequenti",
-            "Ci sono fingerprint JA4 sospetti?"
-        ]
-        for prompt in suggestions:
-            button = tk.Button(side, text=prompt, command=lambda p=prompt: self.use_suggestion(p),
-                               anchor="w", justify="left", wraplength=235, bg=COLORS["panel"], fg=COLORS["muted"],
-                               activebackground=COLORS["panel_alt"], activeforeground=COLORS["text"], relief="flat",
-                               cursor="hand2", padx=20, pady=6, font=("Arial", 10))
-            button.pack(fill="x")
+        self._build_statusbar(sidebar)
 
-        self.model_status = tk.Label(
-            side,
-            text="●  Modello locale: verifica...",
-            bg=COLORS["panel"],
-            fg=COLORS["muted"],
-            font=("Arial", 10),
-        )
-        self.model_status.pack(side="bottom", anchor="w", padx=20, pady=18)
+    def _build_statusbar(self, parent):
+        bar = tk.Frame(parent, bg=COLORS["panel"], pady=20, padx=10)
+        bar.pack(fill="x", side="bottom")
+
+        self.model_status = tk.Label(bar, text="●  Modello locale: verifica...", bg=COLORS["panel"], fg=COLORS["muted"], font=("Arial", 10))
+        self.model_status.pack(side="left", anchor="n")
         self.after(0, self._check_model_status)
 
     def _check_model_status(self):
@@ -156,68 +206,66 @@ class ChatApp(tk.Tk):
 
         self.after(4000, self._check_model_status)
 
-    def _build_chat(self, root):
-        main = ttk.Frame(root)
-        main.grid(row=0, column=1, sticky="nsew")
-        main.columnconfigure(0, weight=1)
-        main.rowconfigure(1, weight=1)
+    def build_content_area(self, parent):
+        content_window = tk.Frame(parent, bg=COLORS["bg"])
+        content_window.grid(row=0, column=1, sticky="nsew")
 
-        header = ttk.Frame(main)
-        header.grid(row=0, column=0, sticky="ew", padx=28, pady=(20, 10))
-        ttk.Label(header, text="Network Intelligence", font=("Arial", 19, "bold")).pack(side="left")
-        ttk.Label(header, text="Pronto a leggere il tuo traffico", font=("Arial", 12), foreground=COLORS["muted"]).pack(
-            side="left", padx=12, pady=(4, 0))
-        ttk.Button(header, text="Nuova chat", style="Ghost.TButton", command=self.reset_chat).pack(side="right")
+        self._page_header = tk.Frame(content_window, bg=COLORS["panel"], pady=14)
+        self._page_header.pack(fill="x")
 
-        chat_outer = tk.Frame(main, bg=COLORS["bg"])
-        chat_outer.grid(row=1, column=0, sticky="nsew", padx=28, pady=6)
-        self.chat = tk.Text(chat_outer, bg=COLORS["bg"], fg=COLORS["text"], relief="flat", borderwidth=0,
-                            wrap="word", padx=2, pady=8, state="disabled", font=("Arial", 12), cursor="arrow")
-        scroll = ttk.Scrollbar(chat_outer, orient="vertical", command=self.chat.yview)
-        self.chat.configure(yscrollcommand=scroll.set)
-        scroll.pack(side="right", fill="y")
-        self.chat.pack(side="left", fill="both", expand=True)
-        self.chat.tag_configure("assistant", background=COLORS["bot"], foreground=COLORS["text"], lmargin1=18,
-                                lmargin2=18, rmargin=100, spacing1=12, spacing3=12)
-        self.chat.tag_configure("user", background=COLORS["user"], foreground="white", lmargin1=100, lmargin2=100,
-                                rmargin=18, spacing1=12, spacing3=12, justify="right")
-        self.chat.tag_configure("meta", foreground=COLORS["muted"], font=("Arial", 9), spacing1=6)
+        self._page_title_lbl = tk.Label(self._page_header, text="", bg=COLORS["panel"], fg=COLORS["text"], font=("Arial", 14, "bold"), padx=24)
+        self._page_title_lbl.pack(side="left")
 
-        composer = tk.Frame(main, bg=COLORS["panel_alt"], highlightbackground=COLORS["border"], highlightthickness=1)
-        composer.grid(row=2, column=0, sticky="ew", padx=28, pady=(10, 22))
-        composer.columnconfigure(0, weight=1)
-        self.prompt = tk.Text(composer, height=2, bg=COLORS["panel_alt"], fg=COLORS["text"], insertbackground="white", relief="flat", wrap="word", padx=12, pady=10, font=("Arial", 12))
-        self.prompt.grid(row=0, column=0, sticky="ew")
-        self.prompt.bind("<Return>", self._on_return)
-        self.send_button = ttk.Button(composer, text="Invia  ↑", style="Primary.TButton", command=self.send_message)
-        self.send_button.grid(row=0, column=1, padx=(0, 8), pady=8, sticky="ns")
+        self._page_subtitle_lbl = tk.Label(self._page_header, text="", bg=COLORS["panel"], fg=COLORS["muted"], font=("Arial", 10), padx=4)
+        self._page_subtitle_lbl.pack(side="left")
 
-    def _on_return(self, event):
-        if event.state & 0x1: # se premuto shift+Enter ==> a capo e NON invia
-            return None
-        self.send_message() # altrimenti se premuto solo Enter ==> sottometti la domanda
-        return "break"
+        self._content_stack = tk.Frame(content_window, bg=COLORS["bg"]) # contenitore che ospita tutte le tab
+        self._content_stack.pack(fill="both", expand=True)
 
-    def add_message(self, role, content):
-        now = datetime.now().strftime("%H:%M")
-        label = "NETSCOPE AI" if role == "assistant" else "TU"
-        self.chat.configure(state="normal")
-        self.chat.insert("end", f"{label}  ·  {now}\n", "meta")
-        self.chat.insert("end", f"{content}\n", role)
-        self.chat.configure(state="disabled")
-        self.chat.see("end")
+        # qui vengono create tutte le pagine dell'applicazione una sola volta
+        # Passiamo SOLO self._content_stack come parent e la session per condividere i dati
+        self._frames: dict[str, tk.Frame] = {
+            "chat": ChatApp(self._content_stack, session=self.session),
+            "analytics": Analytics(self._content_stack, session=self.session)
+        }
+
+    # associa ad ogni pagina il titolo visualizzato e il titolo descrittivo
+    _PAGE_META = {
+        "chat": ("LLM Chat", "Comunica con il modello locale per analizzare il traffico"),
+        "analytics": ("Traffic Analytics", "Mostra le metriche visive sul traffico analizzato")
+    }
+
+    def _navigate(self, key):
+        # se la pagina è gia aperta evito di ricaricarla inutilmente
+        if key == self._current_key:
+            return
+
+        # nascondo la pagina che era aperta, prima di mostrarne un’altra
+        if self._current_key:
+            if self._current_key in self._nav_items:
+                self._nav_items[self._current_key].set_active(False) # recupero la voce della sidebar corrispondente alla pagina corrente e la disattivo
+            if self._current_key in self._frames:
+                self._frames[self._current_key].pack_forget() # rimossione visiva della pagina vecchia
+
+        self._current_key = key  # memorizzo la nuova pagina
+        self._nav_items[key].set_active(True)  # evidenzio la voce nella sidebar
+
+        title, subtitle = self._PAGE_META.get(key, (key, ""))
+        self._page_title_lbl.config(text=title)
+        self._page_subtitle_lbl.config(text=subtitle)
+
+        # Se stiamo aprendo Analytics eseguo il refresh dei grafici
+        if key == "analytics" and hasattr(self._frames[key], "refresh"):
+            self._frames[key].refresh()
+
+        self._frames[key].pack(fill="both", expand=True)  # mostra la nuova pagina nell'area centrale
 
     def open_pcap_converter(self):
-        """Istanzia la finestra separata definita nel modulo converter_window."""
-        PcapConverterWindow(self, COLORS)
+        PcapConverterWindow(self)
 
-    def register_generated_file(self, path: str):
+    def register_generated_file(self, path):
         self.last_generated_file = path
-        self.btn_load_recent.configure(
-            state="normal",
-            cursor="hand2",
-            text=f"➔  Usa {Path(path).name}"
-        )
+        self.btn_load_recent.configure(state="normal", cursor="hand2", text=f"➔  Usa {Path(path).name}")
 
     def _load_last_generated(self):
         if self.last_generated_file and os.path.exists(self.last_generated_file):
@@ -231,61 +279,31 @@ class ChatApp(tk.Tk):
         if path:
             self.load_file_from_path(path)
 
-    def load_file_from_path(self, path: str):
+    def load_file_from_path(self, path):
         try:
             kb = parse_ndpi_output(path)
+            self.session.workspace = kb  # memorizzo la KB a livello di sessione condivisa
         except Exception as error:
             messagebox.showerror("Impossibile leggere il file", str(error))
             return
 
-        self.knowledge_base = kb
         self.current_file = path
         name = Path(path).name
         self.file_status.configure(text=name)
-        self.stats_label.configure(
-            text=f"{len(kb['hosts'])} host  ·  {len(kb['ja4_to_info'])} JA4\n{len(kb['all_domains'])} domini rilevati"
-        )
-        self.add_message("assistant", f"Analisi pronta: ho caricato “{name}”. Puoi iniziare a interrogare la baseline.")
+        self.stats_label.configure(text=f"{len(kb['hosts'])} host  ·  {len(kb['ja4_to_info'])} JA4\n{len(kb['all_domains'])} domini rilevati")
 
-    def use_suggestion(self, prompt):
-        self.prompt.delete("1.0", "end")
-        self.prompt.insert("1.0", prompt)
-        self.prompt.focus_set()
+        # Notifica nella chat che l'analisi è pronta (recuperando l'istanza della chat)
+        chat_frame = self._frames.get("chat")
+        if isinstance(chat_frame, ChatApp):
+            chat_frame.add_message("assistant", f"Analisi pronta: ho caricato “{name}”. Puoi iniziare a interrogare la baseline o guardare i grafici nella tab Analytics.")
 
-    def reset_chat(self):
-        self.chat.configure(state="normal") # rendo remporaneamenre il widget chat modificabile
-        self.chat.delete("1.0", "end") # dalla prima riga fino alla fine del testo
-        self.chat.configure(state="disabled") # lo rendo nuovamente in sola lettura per l'utente
-        self.add_message("assistant", "Nuova conversazione avviata. Il file attualmente caricato resta disponibile.")
-
-    def send_message(self):
-        question = self.prompt.get("1.0", "end").strip()
-        if not question or self.is_waiting:
-            return
-        self.prompt.delete("1.0", "end")
-        self.add_message("user", question)
-        if self.knowledge_base is None:
-            self.add_message("assistant",
-                             "Prima carica un file di output nDPI o converti una cattura PCAP dal pannello laterale.")
-            return
-        self.is_waiting = True
-        self.send_button.configure(state="disabled", text="Analizzo…")
-        threading.Thread(target=self._ask_model, args=(question,), daemon=True).start()
-
-    def _ask_model(self, question):
-        try:
-            answer = query_local_ai(question, json_ready(self.knowledge_base))
-        except Exception as error:
-            answer = f"Non sono riuscito a contattare il modello locale: {error}"
-        self.after(0, lambda: self._complete_answer(answer)) # dice: "Appena possibile, esegui _complete_answer(answer) nel thread della GUI."
-
-    def _complete_answer(self, answer):
-        self.add_message("assistant", answer)
-        self.is_waiting = False
-        self.send_button.configure(state="normal", text="Invia  ↑")
-        self.prompt.focus_set() # rimette il cursore nella casella di testo per scrivere una nuova domanda
-
+        # Se il file è stato caricato mentre siamo nella scheda Analytics,
+        # forzo un refresh immediato dei grafici e delle summary senza dover cambiare tab
+        if self._current_key == "analytics":
+            analytics_frame = self._frames.get("analytics")
+            if hasattr(analytics_frame, "refresh"):
+                analytics_frame.refresh()
 
 if __name__ == "__main__":
-    app = ChatApp()
+    app = AnalyzerApp()
     app.mainloop()
