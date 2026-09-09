@@ -667,3 +667,8 @@ class Analytics(ttk.Frame):
         upload_threshold_var.trace_add("write", lambda *_: populate_tree())
 
         populate_tree() # primo popolamento all'apertura della vista
+
+    def refresh(self):
+        """ Metodo chiamato al cambio di tab per aggiornare summary_slot e grafici leggendo la session """
+        self._build_summary_slots()
+        self._render_graphs_manager("overview")
