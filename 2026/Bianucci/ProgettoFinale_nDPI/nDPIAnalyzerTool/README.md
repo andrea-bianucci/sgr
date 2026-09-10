@@ -133,34 +133,33 @@ Nel nostro caso, come si nota nel grafico a barre, gli indicatori di rischio ril
 * **Unidirectional Traffic**: Un flusso di rete in cui i dati viaggiano in una sola direzione (es. il client invia dati ma non riceve risposta, o viceversa). 
   * È tipico dei reindirizzamenti falliti, attacchi DDoS o scansioni massive.
 
-Il primo grafico è un grafico a barre e mostra l'incidenza globale (tutti i flussi catturati) sui vari risk rilevati, e si nota appunto che `Expected on port 80` è il _risk_ con piu incidenza di tutti.
-Nella tabella sottostante invece possiamo analizzare tra i flussi di uno specifico host sorgente, quelli che sono etichettati con un _risk_ (es: in 192.168.2.2, 71 flussi lo sono), mostrandoci, **in ordine decrescente di _risk score_**, 
-il tipo di rischio, il suo score, la destinazinoe ed il volume di dati scambiato.
+Il primo grafico è un grafico a barre e mostra l'incidenza globale (tutti i flussi) sui vari risk rilevati, e si nota che `Expected on port 80` è il _risk_ con incidenza più elevata.
+Nella tabella sottostante invece possiamo analizzare tra i flussi di uno specifico host sorgente quelli che sono etichettati con un _risk_ (es: per 192.168.2.2, 71 flussi lo sono), mostrandoci, **in ordine decrescente di _risk score_**, il tipo di rischio, il suo score, la destinazione ed il volume di dati scambiato.
 Notiamo subito dai primi flussi che l'analisi sta rispecchiando la situazione attuale di hotspot del Mac verso l'iPhone; infatti troviamo:
-* **_Mismatching Protocol_**: dato che il traffico passa attraverso il Mac che fa da hotspot ed esegue il NAT, nDPI vede discrepanze nell'incapsulamento o nel protocollo QUIC (usato massicciamente da iOS/MacOS per velocizzare le connessioni, come visto sopra nel grafico a torta (QUIC.Insagram))
+* **_Mismatching Protocol_**: dato che il traffico passa attraverso il Mac che fa da hotspot ed esegue il NAT, nDPI vede discrepanze nell'incapsulamento o nel protocollo QUIC (usato massicciamente da iOS/MacOS per velocizzare le connessioni, come visto sopra nel grafico a torta (QUIC.Instagram))
 * **_Expected on port 80_**: l'IP genera traffico verso la destinazione 192.168.1.68:7000, ma considerando il meccanismo di routing del Mac e i software Apple, si tratta di una comunicazione diretta tra il dispositivo ospite (l'host 192.168.2.2) e il Mac ospitante
-  * La porta 7000 è una porta nativa famosissima infatt nell'ecosistema Apple: viene utilizzata per AirPlay e per lo streaming di contenuti multimediali verso/da dispositivi Apple.
+  * La porta 7000 è una porta nativa famosissima nell'ecosistema Apple: viene utilizzata per AirPlay e per lo streaming di contenuti multimediali verso/da dispositivi Apple.
   * AirPlay e i protocolli di streaming Apple usano una **combinazione customizzata di HTTP modificato**, e flussi video frammentati (MpegDash). Poiché viaggiano sulla porta 7000 invece che sulla porta web standard (80), nDPI genera il flag Expected on port 80. 
 * Infine, trattandosi di chiamate di sistema tra dispositivi Apple e non di un browser web, non esiste un'intestazione browser classica, scatenando il flag **_Empty or missing User-Agent_**.
 
 <img src="risk.png" alt="risk" width="30%">
 
 
-Nella quarta scheda troviamo inanzi tutto la conferma che il dispositivo 192.168.2.2 si tratta di un iPhone, e sottostante a questa informazione troviamo una tabella con i flussi del traffico che hanno quell'IP come IP_src ed ha l'intento di mostrare la legittimità del traffico tramite l'analisi della coerenza strutturale dell'impronta JA4 calcolata da nDPI.
-L'esito "Match!" certifica che c'è totale coerenza tra ciò che nDPI rileva nel traffico e ciò che la fingerprint JA4 codifica internamente. Nello specifico, verifica che quando viene rilevato un dominio testuale (SNI), la fingerprint JA4 marchi correttamente il campo come d (Domain). Qui si nota essere tutto corretto.
-Guardando comunque la lista, il traffico appare del tutto coerente con un utlizzo quotidiano ed innocuo di un iPhone: si vedono flussi verso i server di Instagram (tramite protocollo QUIC), Spotify (TLS e QUIC), Telegram e servizi di background Apple (iCloud e notifiche push), confermando che l'attività del dispositivo in quell'intervallo temporale era legata ad applicazioni social, messaggistica e streaming musicale.
+Nella quarta scheda troviamo innanzi tutto la conferma che il dispositivo 192.168.2.2 si tratta di un iPhone e sotto a questa informazione troviamo una tabella con i flussi del traffico che hanno quell'IP come IP_src, ed ha l'intento di mostrare la legittimità del traffico tramite l'analisi della coerenza strutturale dell'impronta JA4 calcolata da nDPI.
+L'esito "Match!" certifica che c'è totale coerenza tra ciò che nDPI rileva nel traffico e ciò che la fingerprint JA4 codifica internamente. Nello specifico, verifica che quando viene rilevato un dominio testuale (SNI), la fingerprint JA4 marchi correttamente il campo come `d`  (Domain). Qui si nota essere tutto corretto.
+Guardando la lista, il traffico appare del tutto coerente con un utlizzo quotidiano ed innocuo di un iPhone: si vedono flussi verso i server di Instagram (tramite protocollo QUIC), Spotify (TLS e QUIC), Telegram e servizi di background Apple (iCloud e notifiche push), confermando che l'attività del dispositivo in quell'intervallo temporale era legata ad applicazioni social, messaggistica e streaming musicale.
 
 Molti malware, una volta infettato un dispositivo, cercano di comunicare con il server degli attaccanti, e per evitare di essere bloccati dai filtri DNS, spesso non usano un nome di dominio, ma si collegano direttamente a indirizzi IP numerici scritti nel codice del virus.
-Pertanto se un malware cercasse di camuffarsi inviando un finto dominio nel pacchetto (SNI), ma la fingerprint JA4 indicasse i (IP), vedremo un _Mismatch_, notificandocelo immediatamente come indicatore di compromissione.
+Pertanto se un malware cercasse di camuffarsi inviando un finto dominio nel pacchetto (SNI), ma la fingerprint JA4 indicasse `i` (IP), vedremo un _Mismatch_, notificandocelo immediatamente come indicatore di compromissione.
 
 <img src="JA4.png" alt="JA4" width="30%">
 
 
-La quinta ed ultima scheda, fornisce l'elenco di tutti i singoli flussi di rete tracciati durante la sessione di cattura.
-Nella sezione superiore dell'interfaccia, troviamo i pannelli di riepilogo che permettono di monitorare le metriche globali: la durata totale della cattura, il numero di host rilevati, la varietà di impronte crittografiche uniche (JA4), il numero complessivo dei flussi analizzati e il totale delle anomalie riscontrate (ovvero tutti i flussi in cui nDPI ha rilevato indicatori di rischio (campo _Risk_)).
+La quinta ed ultima scheda fornisce l'elenco di tutti i singoli flussi di rete tracciati durante la sessione di cattura.
+Nella sezione superiore dell'interfaccia troviamo i pannelli di riepilogo che permettono di monitorare le metriche globali: la durata totale della cattura, il numero di host rilevati, la varietà di impronte crittografiche uniche (JA4), il numero complessivo dei flussi analizzati e il totale delle anomalie riscontrate (ovvero tutti i flussi in cui nDPI ha rilevato indicatori di rischio (campo _Risk_)).
 
-A differenza delle schede dedicate al profiling del singolo host, in questa vista ho scelto intenzionalmente di non vincolare la visualizzazione a un target IP tramite menu a tendina, bensi di mantenere una panoramica globale consentendo all'analista di correlare e confrontare il comportamento dell'host target con il traffico di background generato dagli altri nodi presenti all'interno della stessa rete.
-Per facilitare l'ispezione visiva e l'identificazione immediata di pattern critici, viene adottato un sistema di evidenziazione a colori con relativa legenda:
+A differenza delle schede dedicate al profiling del singolo host, in questa vista ho scelto intenzionalmente di non vincolare la visualizzazione a un target IP, bensì di mantenere una panoramica globale consentendo all'analista di correlare e confrontare il comportamento dell'host target con il traffico di background generato dagli altri nodi presenti all'interno della stessa rete.
+Per facilitare l'ispezione visiva e l'identificazione immediata di pattern critici viene adottato un sistema di evidenziazione a colori con relativa legenda:
 * _Rosso (Flussi con anomalie / rischi)_: richiama l'attenzione sulle connessioni che presentano violazioni o deviazioni dal comportamento standard. 
   * Esempio (ID 10 - Telegram): il flusso viene evidenziato in rosso poiché contrassegnato dall'indicatore Susp Entropy con Risk Score pari a 10. 
     * Verificabile nella scheda Security & Risks, nDPI ha calcolato per questo payload un valore di entropia pari a 6.977, etichettandolo come Compressed Executable?. 
