@@ -18,7 +18,6 @@ Esaminare la sola 5-tupla (IP_src, porta_src, IP_dst, porta_dst, proto_L4) per l
 Nasce per questo motivo la tecnologia Deep Packet Inspection (DPI).
 Col passare del tempo però, l'adozione pervasiva di protocolli di cifratura hanno iniziato ad imporre delle forti limitazioni anche a quest’ultima; nasce da questa osservazione una nuova libreria open source **per l'analisi e la classificazione** del traffico di rete chiamata nDPI. Questa libreria, sviluppata da ntop, prende spunto da una precedente versione open source chiamata OpenDPI ormai deprecata, ed a partire da questa sono state aggiunte e raffinate molteplici funzionalità.
 
-Cosa offre questa libreria:
 La libreria nDPI offre un sistema di analisi e classificazione del traffico di rete che analizza entro certi limiti il payload dei pacchetti appartenenti a flussi in chiaro (non cifrati); e i metadati dei pacchetti relativi alla fase di accordo iniziale (**Handshaking**) per i flussi cifrati. In particolare nDPI:
 * Non si fida del numero di porta, ed è in grado di identificare il traffico di un certo protocollo che viaggia su una porta non standard;
 * Supporta nativamente centinaia di protocolli ed applicazioni diverse, offrendo anche la possibilità di utilizzare un file di configurazione dedicato per estendere questo patrimonio;
