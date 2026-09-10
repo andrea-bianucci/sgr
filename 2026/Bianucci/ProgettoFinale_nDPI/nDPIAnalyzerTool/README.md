@@ -36,9 +36,8 @@ Soprattutto per il fatto che oggi giorno la rete è composta principalmente da 3
 come quel servizio sta navigando impedendoci di imporre policy di sicurezza dedicate per quello specifico protocollo (es: versioni TLS obsolete).
 
 
-Tornando al progetto, lo studio si basa sull'applicazione della libreria nDPI al traffico generato da un dispositivo mobile, con l'intento di **classificarlo** e **definirne una baseline comportamentale**.
-Il progetto si presenta come un tool per l'analisi dei dati prodotti da `ndpiReader`, una fuinzionalita della libreria, su un file di cattura `.pcapng`. Tale cattura è stata effettuata via software isolando il traffico del dispositivo mobile, 
-preventivamente collegato a una rete hotspot offerta dall'host di cattura. L'applicativo ha quindi lo scopo di ispezionare i flussi estrapolati alla ricerca di anomalie, incongruenze e potenziali rischi di sicurezza.
+Tornando al progetto, lo studio si basa sull'applicazione della libreria nDPI al traffico generato da un dispositivo mobile, con l'intento di **classificarlo** e **definirne una baseline comportamentale** del dispositivo.
+Il progetto si presenta come un tool per l'analisi dei dati prodotti da `ndpiReader`, una funzionalità della libreria, applicata ad un file di cattura `.pcapng`. Tale cattura è stata effettuata via software isolando il traffico del dispositivo mobile, preventivamente collegato a una rete hotspot offerta dall'host di cattura. L'applicativo ha anche lo scopo di ispezionare i flussi estrapolati alla ricerca di anomalie, incongruenze e potenziali rischi di sicurezza.
 
 Il lavoro prevede inoltre l'integrazione di un modello di **Intelligenza Artificiale (LLM)** eseguito interamente in locale, per consentire di rispondere a domande comportamentali riguardo i dispositivi, tramite linguaggio naturale.
 
@@ -63,7 +62,7 @@ cd nDPI
 make
 ```
 
-Dopo di che è possibile generare il risultato di `ndpiReader`, posizionandosi nella cartella che ospita il file `.pcapng` ed eseguire lo script direttamente da linea di comando nel modo seguente:
+Successivamente è possibile generare il risultato di `ndpiReader` posizionandosi nella cartella che ospita il file `.pcapng` ed eseguire lo script direttamente da linea di comando nel seguente modo:
 ```bash
 /Users/Tuo_Nome_Utente/nDPI/example/ndpiReader -i ./traffico_telefono.pcapng -v 2 > ./ndpi_output.txt
 ```
