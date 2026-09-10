@@ -69,37 +69,34 @@ Successivamente è possibile generare il risultato di `ndpiReader` posizionandos
 
 oppure tramite la sezione apposita di conversione '.pcapng -> .txt' offerta dal Tool stesso (vedi immagini sotto).
 
-Una volta applicato `ndpiReader`, è stato possible, a partire dal file prodotto, estrarre informazioni utili tramite espressioni regolari (RegEx), ed iniziare a costruire una struttura a dizionario, che nel progetto prende il nome di knowledge base, che sarà appunto la
-base informativa per le domande che andremo a porre tramite la `Chat` al modello di intelligenza artificiale e la costruzione dei grafici visibili nella sezione `Analytics`.
+Una volta applicato `ndpiReader` è stato possibile, a partire dal file prodotto, estrarre informazioni utili tramite espressioni regolari (RegEx) ed iniziare a costruire una struttura a dizionario che nel progetto prende il nome di _knowledge base_, che sarà la
+base informativa per le domande che andremo a porre tramite la `Chat` al modello di intelligenza artificiale. Grazie alle informazioni estratte è stato possibile costruire i grafici visibili nella sezione `Analytics`.
 
 #### 3.2 Integrazione con Intelligenza Artificiale Locale
 Per rispondere in modo dinamico a **domande esplorative sul comportamento** del dispositivo (es. *"Possiamo ritenere il dispositivo con IP 192.168.2.2 sicuro?"*), lo script è dotato di un modulo di interfacciamento verso un **Large Language Model (LLM)** ospitato in locale.
 Attraverso l'interfacciamento del modello su `localhost:1234` è possibile raggiungerlo ed interrogarlo tramite semplici richieste HTTP.
 
-È possibile interrogare il modello non appena viene avviata la GUI e caricato il file _.txt_ prodotto da `ndpiReader`. In questo caso, il modello riceve come base informativa una knowledge base generale e riassuntiva contenente le informazioni relative a tutti gli host. In alternativa, 
-una volta entrati nella sezione Analytics, in alcune finestre, come mostrato nella figura sottostante, è possibile selezionare un indirizzo IP tramite un menu a tendina. L’ultimo indirizzo IP selezionato viene salvato in NetSession e propagato nel tempo come parte dello stato della sessione. 
-In questo modo, le successive domande poste al modello di AI vengono formulate utilizzando una knowledge base più raffinata e specificamente dedicata al singolo host selezionato. (NOTA: Questa scelta architetturale è dovuta alla necessita di risparmiare token per poter far girare il modello anche in situazioni pesanti 
-dove sono presenti piu host nella rete e con un carico di flussi molto elevato)
+È possibile interrogare il modello non appena viene avviata la GUI e caricato il file _.txt_ prodotto da `ndpiReader`. In questo caso, il modello riceve come base informativa una knowledge base generale e riassuntiva contenente le informazioni relative a tutti gli host. In alternativa, una volta entrati nella sezione Analytics, in alcune finestre, come mostrato nella figura sottostante, è possibile selezionare un indirizzo IP tramite un menù a tendina. L’ultimo indirizzo IP selezionato viene salvato in `NetSession` e propagato nel tempo come dato dello stato della sessione. 
+In questo modo, le successive domande poste al modello di AI vengono formulate utilizzando una knowledge base più raffinata e specificamente dedicata al singolo host selezionato. (NOTA: Questa scelta architetturale è dovuta alla necessità di risparmiare token per poter far girare il modello anche in situazioni pesanti dove sono presenti più host nella rete e con un carico di flussi molto elevato)
 
 <img src="combobox.png" alt="combobox" width="30%">
 
 ### 4. Sperimentazione e Analisi dei Risultati
 
-La fase sperimentale ha proseguito l'analisi sfruttando i grafici generati dal tool, con l'obiettivo di verificare la correlazione tra fingerprint crittografiche (JA4) e SNI, protocolli applicativi e indicatori di rischio associati ai flussi del dispositivo mobile, 
-cercando così di ricreare una baseline comportamentale del dispositivo in analisi.
+La fase sperimentale ha proseguito l'analisi sfruttando i grafici generati dal tool, con l'obiettivo di verificare la correlazione tra fingerprint crittografiche (JA4) e SNI, protocolli applicativi e indicatori di rischio associati ai flussi, cercando così di ricreare una baseline comportamentale del dispositivo in analisi.
 
 L'analisi offline eseguita sul dataset `traffico_telefono_ndpi.txt` ha prodotto i seguenti risultati aggregati:
 
 **Flussi analizzati:** **762 flussi unici**, di cui 699 classificati tramite DPI, ed i rimanenti 2 tramite classica risoluzione porte o DNS caching. <br/>
 **Throughput medio:** 100.69 pps / 807.76 Kb/sec
 
-Dai primi grafici si nota subito una netta dominanza del traffico UDP (≈ 88%) rispetto al traffico TCP (≈ 11%), a testimonianza dell'adozione massiccia di protocolli di nuova generazione (ne è un forte esempio QUIC). Si nota inoltre che l'applicazione rilevata che genera piu traffico è Instagram con protocollo superiore, ben appunto, QUIC; la quale genera fino a ≈ 50 MB di traffico.
+Dai primi grafici si nota subito una netta dominanza del traffico UDP (≈ 88%) rispetto al traffico TCP (≈ 11%), a testimonianza dell'adozione massiccia di protocolli di nuova generazione (ne è un forte esempio QUIC). Osservando il grafico a barre emerge che Instagram è l'applicazione che genera più traffico con protocollo superiore QUIC (≈ 50 MB di traffico).
 
 <img src="tcp_udp.png" alt="tcp_udp" width="30%">
 
 
-La seconda scheda conferma la precedente statistica, infatti si osserva come per l'host `192.168.2.2`, l'applicazione che genera piu traffico è QUIC.Instagram, confermando come la categoria con maggior influenza sia la `SocialNetwork`.
-nDPI classifica il traffico anche in categorie chiamate `breeds` (come si vede in figura), di cui le principali sono:
+La seconda scheda conferma la precedente statistica, infatti si osserva come per l'host `192.168.2.2`, l'applicazione che genera più traffico è QUIC.Instagram, confermando `SocialNetwork` la categoria con maggior influenza (byte).
+nDPI classifica il traffico anche in categorie chiamate `breeds`, di cui le principali sono:
 * **Unspecified**: Traffico generico non associato a un comportamento specifico.
 * **Safe**: Protocolli sicuri, standard e privi di rischi intrinseci (es. DNS standard).
 * **Acceptable**: Applicazioni aziendali o d'uso comune che non violano tipicamente le policy di rete (es. IMAP, SMTP).
@@ -108,15 +105,14 @@ nDPI classifica il traffico anche in categorie chiamate `breeds` (come si vede i
 * **Dangerous**: Traffico associato a malware, botnet, attacchi informatici o siti di phishing noti.
 * **P2P (Peer-to-Peer)**: Protocolli di condivisione file decentralizzati (es. BitTorrent, eMule).
 
-Le `breeds` sono fondamentali per i sistemi di monitoraggio e i firewall, in quanto permettono agli amministratori di rete di creare regole di sicurezza rapide, 
-come ad esempio bloccare o limitare interamente tutto il traffico marchiato con una certa _breed_, senza dover selezionare manualmente centinaia di singoli protocolli.
+Le `breeds` sono fondamentali per i sistemi di monitoraggio e i firewall, in quanto permettono agli amministratori di rete di creare regole di sicurezza rapide: ad esempio bloccare o limitare interamente tutto il traffico marchiato con una certa _breed_, senza dover selezionare manualmente centinaia di singoli protocolli.
 
-Nel nostro caso si nota la breed _Fun_ rappresentare la fetta piu grande in figura, e questo ci sta bene in quanto rispecchia e conferma l'informazione che ci forniscono i due grafici alla sua sinistra. 
+Nel nostro caso si nota la breed _Fun_ rappresentare la fetta più grande nel grafico e questo conferma l'informazione mostrata dai grafici precedenti.
 
 <img src="app_cat.png" alt="app_cat" width="30%">
 
 
-La terza scheda invece è dedicata all'analisi degli **indicatori di rischio e comportamenti anomali** rilevati da nDPI durante l'analisi del traffico di rete. Questi, assieme ai _breeds_ servono a identificare traffico sospetto, attacchi informatici o configurazioni errate della rete.
+La terza scheda invece è dedicata all'analisi degli **indicatori di rischio e comportamenti anomali** rilevati da nDPI. Questi, assieme ai _breeds_, servono a identificare traffico sospetto, attacchi informatici o configurazioni errate della rete.
 Nel nostro caso, come si nota nel grafico a barre, gli indicatori di rischio rilevati nei nostri flussi sono i seguenti:
 * **Expected on port 80**: Il traffico sta usando la porta 80 (tipica dell'HTTP in chiaro), ma il protocollo identificato all'interno del pacchetto non è HTTP. 
   * Come detto in precedenza, si tratta di una tecnica comune per aggirare i firewall, e conferma la massiccia adozione del protocollo HTTP anche per scopi differenti dal tradizionale scambio di contenuti web, sfruttando le sue caratteristiche per il trasporto di dati nei vari contesti 
