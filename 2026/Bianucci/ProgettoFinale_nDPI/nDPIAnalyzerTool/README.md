@@ -31,7 +31,7 @@ Infine, quando nDPI analizza un flusso, non restituisce una semplice etichetta, 
   * esempio: se un utente guarda un film su Netflix, nDPI classificherà il flusso dicendo: "Questo è traffico che viaggia su protocollo TLS (Master), ma l'applicazione reale all'interno è Netflix (App)".
 
 Quest'ultima funzionalita in particolare è molto importante come innovazione dei precedenti sistemi di monitoraggio, in quanto tenta di risolvere il problema di "cecità" riguardo il tunneling e la profilazione di dati.
-Soprattutto per il fatto che oggi giorno la rete è composta principalmente da 3 blocchi (QUIC, TLS e HTTP), quindi se il sistema di monitoraggio si fermasse al primo livello, non si riuscirebbe a distinguere il traffico di una rete; viceversa se mostrasse solamente l'applicazione non sapremmo piu
+Soprattutto per il fatto che oggi giorno la rete è composta principalmente da 3 protocolli (QUIC, TLS e HTTP), quindi se il sistema di monitoraggio si fermasse al primo livello, non si riuscirebbe a distinguere il traffico di una rete; viceversa se mostrasse solamente l'applicazione non sapremmo piu
 come quel servizio sta navigando impedendoci di imporre policy di sicurezza dedicate per quello specifico protocollo (es: versioni TLS obsolete).
 
 
