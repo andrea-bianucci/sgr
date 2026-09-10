@@ -47,10 +47,9 @@ Il lavoro prevede inoltre l'integrazione di un modello di **Intelligenza Artific
 3. **Generazione Traffico:** Apertura ed utilizzo sequenziale di diverse applicazioni mobili (es. *Instagram, Spotify, WhatsApp, YouTube, TikTok*)
 5. **Dissezione Layer-7:** Analisi offline tramite `ndpiReader -v 2` per l'estrazione di metadati applicativi, Server Name Indication (SNI), volumi di byte e fingerprint JA4, al fine di ottenere una baseline comportamentale del dispositivo.
 
-### 3. Sviluppo del Software di Analisi
+### 3. Setting dell’ambiente di esecuzione
 Per processare l'output di nDPI, è stato sviluppato questo tool in Python (`nDPIAnalyzerTool`) che esegue il parsing del testo e costruisce dinamicamente una **Knowledge Base** che riassume la baseline comportamentale del dispositivo, pronta per essere analizzata.
 
-#### 3.1 Estrazione e Mappatura dei Dati
 Come prima cosa è necessario scaricare in locale tutto il codice nDPI dal repository Github di ntop e compilare i vari sorgenti, ottenendo gli eseguibili (tra cui `ndpiReader.o`)
 
 ```bash
@@ -71,7 +70,7 @@ oppure tramite la sezione apposita di conversione '.pcapng -> .txt' offerta dal 
 Una volta applicato `ndpiReader` è stato possibile, a partire dal file prodotto, estrarre informazioni utili tramite espressioni regolari (RegEx) ed iniziare a costruire una struttura a dizionario che nel progetto prende il nome di _knowledge base_, che sarà la
 base informativa per le domande che andremo a porre tramite la `Chat` al modello di intelligenza artificiale. Grazie alle informazioni estratte è stato possibile costruire i grafici visibili nella sezione `Analytics`.
 
-#### 3.2 Integrazione con Intelligenza Artificiale Locale
+#### 3.1 Integrazione con LLM Locale
 Per rispondere in modo dinamico a **domande esplorative sul comportamento** del dispositivo (es. *"Possiamo ritenere il dispositivo con IP 192.168.2.2 sicuro?"*), lo script è dotato di un modulo di interfacciamento verso un **Large Language Model (LLM)** ospitato in locale.
 Attraverso l'interfacciamento del modello su `localhost:1234` è possibile raggiungerlo ed interrogarlo tramite semplici richieste HTTP.
 
@@ -80,7 +79,7 @@ In questo modo, le successive domande poste al modello di AI vengono formulate u
 
 <img src="combobox.png" alt="combobox" width="30%">
 
-### 4. Sperimentazione e Analisi dei Risultati
+### 4. Sperimentazione ed Analisi dei Risultati
 
 La fase sperimentale ha proseguito l'analisi sfruttando i grafici generati dal tool, con l'obiettivo di verificare la correlazione tra fingerprint crittografiche (JA4) e SNI, protocolli applicativi e indicatori di rischio associati ai flussi, cercando così di ricreare una baseline comportamentale del dispositivo in analisi.
 
@@ -240,8 +239,6 @@ python3 main_app.py
 ---
 
 # GUI nDPI Analyzer Tool
-
-## Preparazione ambiente
 
 Appena viene lanciato lo script, l'interfaccia mostrata è la seguente:
 
