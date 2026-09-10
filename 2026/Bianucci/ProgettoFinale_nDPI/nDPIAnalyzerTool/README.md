@@ -25,7 +25,7 @@ La libreria nDPI offre un sistema di analisi e classificazione del traffico di r
   * Talvolta è possibile trovare anche le fasi di handshaking criptate (vedi Encrypted Client Hello (ECH)); in questi casi nDPI utilizza euristiche per stimare la tipologia di applicazione.
 
 In particolare nDPI si è ben affermato anche per la sua estrema efficienza nel lavoro che svolge, infatti, si stima che siano sufficienti i primi ≈ 8 / 10 pacchetti per riuscire ad intuire l'applicazione con precisione, etichettare definitivamente quel flusso e passare oltre (da quel momento in poi tutti i pacchetti che sopraggiungono appartenenti a quel flusso non verranno più controllati da nDPI). (NOTA: Naturalmente l'analisi DEVE inziare dal principio del flusso, altrimenti non si riesce più). 
-Infine, quando nDPI analizza un flusso, non restituisce una semplice etichetta, ma generalmente ragiona su **due livelli di classificazione <major>.<minor> ,** (per risolvere il problema del tunneling accennato sopra):
+Infine, quando nDPI analizza un flusso, non restituisce una semplice etichetta, ma generalmente ragiona su **due livelli di classificazione < major > . < minor > ,** (per risolvere il problema del tunneling accennato sopra):
 * **Major Protocol (protocollo di livello 7 ISO/OSI)**: protocollo di trasporto reale (il "contenitore"), come ad esempio HTTP, QUIC, HTTPS/TLS;
 * **Minor Protocol (applicazione)**: la vera applicazione che sta producendo traffico incapsulandolo in quel protocollo "contenitore", ad esempio: Whatsapp, Netflix, ecc... .
   * esempio: se un utente guarda un film su Netflix, nDPI classificherà il flusso dicendo: "Questo è traffico che viaggia su protocollo TLS (Master), ma l'applicazione reale all'interno è Netflix (App)".
